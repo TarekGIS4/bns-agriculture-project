@@ -4,3 +4,5 @@ leafmap
 earthengine-api
 owslib
 geopandas
+setuptools
+pip install -r requirements.txt
