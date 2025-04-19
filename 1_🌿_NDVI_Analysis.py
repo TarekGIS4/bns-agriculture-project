@@ -6,11 +6,13 @@ from google.oauth2 import service_account
 import json
 
 
-
-# تحميل بيانات الخدمة من الأسرار
-service_account_info = json.loads(st.secrets["GEE_SERVICE_KEY"])
-credentials = service_account.Credentials.from_service_account_info(service_account_info)
+# تهيئة المصادقة مباشرة من secrets.toml
+credentials = ee.ServiceAccountCredentials(
+    email=st.secrets["GEE_SERVICE_KEY"]["client_email"],
+    key_data=st.secrets["GEE_SERVICE_KEY"]["private_key"]
+)
 ee.Initialize(credentials)
+
 # =================== تعريف المنطقة ===================
 roi = ee.FeatureCollection("projects/ee-risgis897/assets/beni-gov")
 
