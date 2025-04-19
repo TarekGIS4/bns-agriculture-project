@@ -1,9 +1,13 @@
 import streamlit as st
 import geemap.foliumap as geemap
 import ee
+from google.oauth2 import service_account
 
+# تحميل ملف المفاتيح
+credentials = service_account.Credentials.from_service_account_file(
+    "path/to/private-key.json"  # غيّر هذا حسب مكان الملف
+)
 
-credentials = ee.ServiceAccountCredentials("", key_data=st.secrets["GOOGLE_SERVICE_KEY"])
 ee.Initialize(credentials)
 # =================== تعريف المنطقة ===================
 roi = ee.FeatureCollection("projects/ee-risgis897/assets/beni-gov")
