@@ -2,11 +2,10 @@ import streamlit as st
 import geemap.foliumap as geemap
 import ee
 
-# تهيئة الاتصال بالحساب
-service_account = 'streamlit-access@bns-ndvi-project.iam.gserviceaccount.com'  # غيّر الاسم لو مختلف
-credentials = ee.ServiceAccountCredentials(service_account, 'streamlit-key.json')
-ee.Initialize('ee-risgis897')
-
+# تحميل بيانات JSON من secrets
+service_account_info = json.loads(st.secrets["GOOGLE_SERVICE_KEY"])
+credentials = ee.ServiceAccountCredentials("", key_data=service_account_info)
+ee.Initialize(credentials)
 # =================== تعريف المنطقة ===================
 roi = ee.FeatureCollection("projects/ee-risgis897/assets/beni-gov")
 
