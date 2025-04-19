@@ -1,7 +1,7 @@
 import streamlit as st
 import geemap.foliumap as geemap
 import ee
-
+import json
 # تحميل بيانات JSON من secrets
 service_account_info = json.loads(st.secrets["GOOGLE_SERVICE_KEY"])
 credentials = ee.ServiceAccountCredentials("", key_data=service_account_info)
