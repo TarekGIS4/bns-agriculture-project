@@ -6,7 +6,7 @@ st.set_page_config(layout="wide")
 st.title("🌿 NDVI تحليل الزراعة - 2024")
 
 # تحميل البيانات من ملف محلي أو رابط GitHub
-url = "data/ndvi_2024.geojson"  # أو رابط مباشر من GitHub
+url = ".devcontainer/ndvi2024.py"  # أو رابط مباشر من GitHub
 gdf = gpd.read_file(url)
 
 # عرض الخريطة
