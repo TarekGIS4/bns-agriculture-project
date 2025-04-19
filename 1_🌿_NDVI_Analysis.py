@@ -3,12 +3,16 @@ import geemap.foliumap as geemap
 import ee
 from google.oauth2 import service_account
 
-# تحميل ملف المفاتيح
-credentials = service_account.Credentials.from_service_account_file(
-    "path/to/private-key.json"  # غيّر هذا حسب مكان الملف
-)
+import json
 
+
+
+
+# تهيئة Earth Engine
+key_dict = json.loads(st.secrets["GEE_SERVICE_KEY"])
+credentials = service_account.Credentials.from_service_account_info(key_dict)
 ee.Initialize(credentials)
+
 # =================== تعريف المنطقة ===================
 roi = ee.FeatureCollection("projects/ee-risgis897/assets/beni-gov")
 
