@@ -1,13 +1,18 @@
 import streamlit as st
 import ee
 import geemap.foliumap as geemap
+import json
+from google.oauth2 import service_account
 
-# Initialize Earth Engine
+# Load credentials from Streamlit secrets
 try:
-    ee.Initialize(project='ee-risgis897')  # Include the project parameter here
+    credentials_dict = st.secrets["ee_service_account"]
+    credentials = service_account.Credentials.from_service_account_info(credentials_dict)
+    ee.Initialize(credentials, project=credentials_dict["project_id"])
 except Exception as e:
     st.error(f"Failed to initialize Earth Engine: {e}")
     st.stop()
+
 
 # Region of Interest
 try:
