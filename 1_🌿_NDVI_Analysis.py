@@ -2,12 +2,10 @@ import streamlit as st
 import geemap.foliumap as geemap
 import ee
 
-# =================== تهيئة Earth Engine ===================
-try:
-    ee.Initialize(project='ee-risgis897')
-except Exception as e:
-    ee.Authenticate()
-    ee.Initialize(project='ee-risgis897')
+# تهيئة الاتصال بالحساب
+service_account = 'streamlit-access@bns-ndvi-project.iam.gserviceaccount.com'  # غيّر الاسم لو مختلف
+credentials = ee.ServiceAccountCredentials(service_account, 'streamlit-key.json')
+ee.Initialize('ee-risgis897')
 
 # =================== تعريف المنطقة ===================
 roi = ee.FeatureCollection("projects/ee-risgis897/assets/beni-gov")
