@@ -74,10 +74,21 @@ for year in years:
     # دمج المجموعات
     combined = ee.ImageCollection(l5_year.merge(l8_year))
     
-    # حساب المتوسط وإضافة للسلسلة إذا وجدت صور
-    if combined.size().getInfo() > 0:
-        image = combined.select('NDVI').median().clip(roi).set("year", year)
-        annual_ndvi.append(image)
+    # التحقق من وجود صور باستخدام دالة ee.Algorithms.IsEqual(combined.size(), 0)
+    is_empty = ee.Algorithms.IsEqual(combined.size(), 0)
+    
+    # استخدام ee.Algorithms.If لتنفيذ الخطوات التالية فقط إذا كانت المجموعة غير فارغة
+    image = ee.Algorithms.If(
+        is_empty,
+        ee.Image(None),  # إرجاع صورة فارغة إذا كانت المجموعة فارغة
+        combined.select('NDVI').median().clip(roi).set("year", year)  # حساب المتوسط وقص الصورة إذا كانت المجموعة غير فارغة
+    )
+    
+    # إضافة الصورة إلى القائمة إذا لم تكن فارغة
+    annual_ndvi.append(image)
+
+# تصفية الصور الفارغة من القائمة
+annual_ndvi = [img for img in annual_ndvi if img is not None]
 
 # إنشاء مجموعة الصور للسلسلة الزمنية
 if len(annual_ndvi) > 0:
@@ -118,4 +129,5 @@ if len(annual_ndvi) > 0:
     m.to_streamlit(height=600)
 else:
     st.error("لم يتم العثور على بيانات NDVI للمنطقة المحددة.")
+
 
