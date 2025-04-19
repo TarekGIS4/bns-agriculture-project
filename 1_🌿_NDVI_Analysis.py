@@ -87,13 +87,14 @@ for year in years:
     # إضافة الصورة إلى القائمة إذا لم تكن فارغة
     annual_ndvi.append(image)
 
-# تصفية الصور الفارغة من القائمة
-annual_ndvi = [img for img in annual_ndvi if img is not None]
+# تصفية الصور الفارغة من القائمة والتأكد من أنها من النوع الصحيح
+annual_ndvi = [img for img in annual_ndvi if isinstance(img, ee.Image)]
 
 # إنشاء مجموعة الصور للسلسلة الزمنية
 if len(annual_ndvi) > 0:
     ndvi_series = ee.ImageCollection.fromImages(annual_ndvi)
-    available_years = [img.get('year').getInfo() for img in annual_ndvi]
+    # تصفية السنوات المتاحة والتأكد من أنها من النوع الصحيح
+    available_years = [img.get('year').getInfo() for img in annual_ndvi if isinstance(img, ee.Image)]
     layer_names = [f"NDVI {y}" for y in available_years]
     
     # إعدادات العرض
@@ -129,5 +130,6 @@ if len(annual_ndvi) > 0:
     m.to_streamlit(height=600)
 else:
     st.error("لم يتم العثور على بيانات NDVI للمنطقة المحددة.")
+
 
 
