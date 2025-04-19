@@ -7,12 +7,10 @@ import json
 
 
 
-
-# تهيئة Earth Engine
-key_dict = json.loads(st.secrets["GEE_SERVICE_KEY"])
-credentials = service_account.Credentials.from_service_account_info(key_dict)
+# تحميل بيانات الخدمة من الأسرار
+service_account_info = json.loads(st.secrets["GEE_SERVICE_KEY"])
+credentials = service_account.Credentials.from_service_account_info(service_account_info)
 ee.Initialize(credentials)
-
 # =================== تعريف المنطقة ===================
 roi = ee.FeatureCollection("projects/ee-risgis897/assets/beni-gov")
 
