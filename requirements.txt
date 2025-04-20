@@ -5,3 +5,4 @@ earthengine-api
 owslib
 geopandas
 setuptools
+reportlab
