@@ -1,12 +1,20 @@
 import streamlit as st
 
-# إضافة اللوجو في أعلى الصفحة على الجانب الأيسر
-col1, col2 = st.columns([1, 8])
+# إضافة اللوجو في أعلى الصفحة
+col1, col2, col3 = st.columns([1, 8, 1])
+
+# في العمود الأول (يسار) إضافة اللوجو الأول
 with col1:
     st.image("https://d.top4top.io/p_3396wqyxt1.png", width=100)  # اللوجو الأول
     st.image("https://f.top4top.io/p_3396bpsyi1.png", width=100)  # اللوجو الثاني
+
+# في العمود الأوسط إضافة عنوان الصفحة
 with col2:
-    st.markdown("# مقارنة بين بيانات Landsat 5 و Landsat 8")  # عنوان الصفحة
+    st.markdown("# Landsat 5 و Landsat 8  بيانات الاقمار الصناعية المستخدمة")  # عنوان الصفحة 
+
+# في العمود الثالث (يمين) إضافة اللوجو الجديد
+with col3:
+    st.image("https://d.top4top.io/p_33967cx431.png", width=100)  # اللوجو الجديد
 
 # عرض الجدول
 st.write("""
