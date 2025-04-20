@@ -39,3 +39,70 @@ st.write("""
 | **Number of Bands**   | 7              | 11                |
 | **Calibration Type**   | SR (Surface Reflectance) | SR (Surface Reflectance) |
 """)
+import pandas as pd
+from io import StringIO
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+
+# تعريف البيانات في شكل DataFrame
+data = {
+    "Band": ["SR_B1", "SR_B2", "SR_B3", "SR_B4", "SR_B5", "SR_B6", "SR_B7", "SR_B10/11"],
+    "Usage": ["Blue (Water and Snow)", "Green (Vegetation)", "Red (Vegetation, Soil)",
+              "NIR (Water and Vegetation)", "SWIR-1 (Moisture)", "TIR (Thermal)",
+              "SWIR-2 (Rock Discrimination)", "-"],
+    "Landsat 5 TM (µm)": ["0.45 – 0.52", "0.52 – 0.60", "0.63 – 0.69", "0.76 – 0.90", 
+                          "1.55 – 1.75", "10.40 – 12.50", "2.08 – 2.35", "Not Available"],
+    "Landsat 8 OLI/TIRS (µm)": ["0.43 – 0.45 (Coastal)", "0.45 – 0.51 (Blue)", "0.53 – 0.59 (Green)",
+                                "0.64 – 0.67 (Red)", "0.85 – 0.88 (NIR)", "1.57 – 1.65 (SWIR-1)",
+                                "2.11 – 2.29 (SWIR-2)", "10.60 – 12.51 (Thermal)"],
+    "Spatial Resolution": ["30m", "30m", "30m", "30m", "30m", "120/100m", "30m", "100m"]
+}
+
+df = pd.DataFrame(data)
+
+# عرض الجدول
+st.write(df)
+
+# وظيفة لتحويل DataFrame إلى CSV
+def convert_df_to_csv(df):
+    return df.to_csv(index=False).encode('utf-8')
+
+# زر تحميل CSV
+csv = convert_df_to_csv(df)
+st.download_button(
+    label="Download as CSV",
+    data=csv,
+    file_name="landsat_comparison.csv",
+    mime="text/csv"
+)
+
+# وظيفة لتحويل DataFrame إلى PDF
+def convert_df_to_pdf(df):
+    buffer = StringIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    c.setFont("Helvetica", 10)
+    text_object = c.beginText(40, 750)
+    
+    # رأس الجدول
+    text_object.textLine("Band\tUsage\tLandsat 5 TM (µm)\tLandsat 8 OLI/TIRS (µm)\tSpatial Resolution")
+    
+    # البيانات
+    for index, row in df.iterrows():
+        text_object.textLine(f"{row['Band']}\t{row['Usage']}\t{row['Landsat 5 TM (µm)']}\t{row['Landsat 8 OLI/TIRS (µm)']}\t{row['Spatial Resolution']}")
+    
+    c.drawText(text_object)
+    c.showPage()
+    c.save()
+    
+    pdf = buffer.getvalue()
+    buffer.close()
+    return pdf
+
+# زر تحميل PDF
+pdf = convert_df_to_pdf(df)
+st.download_button(
+    label="Download as PDF",
+    data=pdf,
+    file_name="landsat_comparison.pdf",
+    mime="application/pdf"
+)
