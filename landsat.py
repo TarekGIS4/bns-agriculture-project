@@ -40,7 +40,8 @@ st.write("""
 | **Calibration Type**   | SR (Surface Reflectance) | SR (Surface Reflectance) |
 """)
 import pandas as pd
-from io import StringIO
+import streamlit as st
+from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
@@ -60,15 +61,11 @@ data = {
 
 df = pd.DataFrame(data)
 
-# عرض الجدول
+# عرض الجدول في الصفحة
 st.write(df)
 
-# وظيفة لتحويل DataFrame إلى CSV
-def convert_df_to_csv(df):
-    return df.to_csv(index=False).encode('utf-8')
-
 # زر تحميل CSV
-csv = convert_df_to_csv(df)
+csv = df.to_csv(index=False).encode('utf-8')
 st.download_button(
     label="Download as CSV",
     data=csv,
@@ -78,7 +75,7 @@ st.download_button(
 
 # وظيفة لتحويل DataFrame إلى PDF
 def convert_df_to_pdf(df):
-    buffer = StringIO()
+    buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
     c.setFont("Helvetica", 10)
     text_object = c.beginText(40, 750)
@@ -93,10 +90,9 @@ def convert_df_to_pdf(df):
     c.drawText(text_object)
     c.showPage()
     c.save()
-    
-    pdf = buffer.getvalue()
-    buffer.close()
-    return pdf
+
+    buffer.seek(0)
+    return buffer
 
 # زر تحميل PDF
 pdf = convert_df_to_pdf(df)
