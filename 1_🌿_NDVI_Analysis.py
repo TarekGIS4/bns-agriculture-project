@@ -3,7 +3,7 @@ import geemap.foliumap as geemap
 import ee
 from google.oauth2 import service_account
 
-# تهيئة المصادقة مباشرة من secrets.toml
+# تهيئة المصادقة
 credentials = ee.ServiceAccountCredentials(
     email=st.secrets["GEE_SERVICE_KEY"]["client_email"],
     key_data=st.secrets["GEE_SERVICE_KEY"]["private_key"]
@@ -13,123 +13,121 @@ ee.Initialize(credentials)
 # تعريف المنطقة
 roi = ee.FeatureCollection("projects/ee-risgis897/assets/beni-gov")
 
-# دالة تقنيع السحب للاندسات 5
+# دالة تقنيع السحب المحسنة
 def maskL5(image):
-    qaMask = image.select('QA_PIXEL').bitwiseAnd(int('11111', 2)).eq(0)
-    saturationMask = image.select('QA_RADSAT').eq(0)
+    qa = image.select('QA_PIXEL')
+    cloud_mask = qa.bitwiseAnd(1 << 3).eq(0)  # Bit 3: Cloud
+    shadow_mask = qa.bitwiseAnd(1 << 4).eq(0)  # Bit 4: Cloud shadow
     opticalBands = image.select('SR_B.').multiply(0.0000275).add(-0.2)
     thermalBand = image.select('ST_B6').multiply(0.00341802).add(149.0)
-    return image.addBands(opticalBands, None, True) \
-        .addBands(thermalBand, None, True) \
-        .updateMask(qaMask) \
-        .updateMask(saturationMask)
+    return image.addBands(opticalBands).addBands(thermalBand)\
+        .updateMask(cloud_mask.And(shadow_mask))
 
-# دالة تقنيع السحب للاندسات 8
 def maskL8(image):
-    qaMask = image.select('QA_PIXEL').bitwiseAnd(int('11111', 2)).eq(0)
-    saturationMask = image.select('QA_RADSAT').eq(0)
+    qa = image.select('QA_PIXEL')
+    cloud_mask = qa.bitwiseAnd(1 << 3).eq(0)
+    shadow_mask = qa.bitwiseAnd(1 << 4).eq(0)
     opticalBands = image.select('SR_B.').multiply(0.0000275).add(-0.2)
     thermalBands = image.select('ST_B.*').multiply(0.00341802).add(149.0)
-    return image.addBands(opticalBands, None, True) \
-        .addBands(thermalBands, None, True) \
-        .updateMask(qaMask) \
-        .updateMask(saturationMask)
+    return image.addBands(opticalBands).addBands(thermalBands)\
+        .updateMask(cloud_mask.And(shadow_mask))
 
-# دالة حساب NDVI للاندسات 5
+# دالة حساب NDVI مع توحيد الدقة
 def calculateNDVI_L5(image):
     ndvi = image.normalizedDifference(['SR_B4', 'SR_B3']).rename('NDVI')
-    return image.addBands(ndvi)
+    return image.addBands(ndvi).reproject('EPSG:4326', scale=30)
 
-# دالة حساب NDVI للاندسات 8
 def calculateNDVI_L8(image):
     ndvi = image.normalizedDifference(['SR_B5', 'SR_B4']).rename('NDVI')
-    return image.addBands(ndvi)
+    return image.addBands(ndvi).reproject('EPSG:4326', scale=30)
 
-# تحميل بيانات لاندسات 5
-landsat5 = ee.ImageCollection("LANDSAT/LT05/C02/T1_L2") \
-    .filterBounds(roi) \
-    .filterDate('1984-01-01', '2011-12-31') \
-    .map(maskL5) \
+# تحميل البيانات مع معالجة متسلسلة
+landsat5 = ee.ImageCollection("LANDSAT/LT05/C02/T1_L2")\
+    .filterBounds(roi)\
+    .filterDate('1984-01-01', '2011-12-31')\
+    .map(maskL5)\
     .map(calculateNDVI_L5)
 
-# تحميل بيانات لاندسات 8
-landsat8 = ee.ImageCollection("LANDSAT/LC08/C02/T1_L2") \
-    .filterBounds(roi) \
-    .filterDate('2013-01-01', '2023-12-31') \
-    .map(maskL8) \
+landsat8 = ee.ImageCollection("LANDSAT/LC08/C02/T1_L2")\
+    .filterBounds(roi)\
+    .filterDate('2013-01-01', '2023-12-31')\
+    .map(maskL8)\
     .map(calculateNDVI_L8)
 
-# إنشاء سلسلة زمنية سنوية
-years = list(range(1984, 2024))
-annual_ndvi = []
-
-for year in years:
+# إنشاء سلسلة زمنية باستخدام Earth Engine
+def create_annual_image(year):
     start = ee.Date.fromYMD(year, 1, 1)
     end = ee.Date.fromYMD(year, 12, 31)
     
-    # جمع بيانات السنة
-    l5_year = landsat5.filterDate(start, end)
-    l8_year = landsat8.filterDate(start, end)
+    l5 = landsat5.filterDate(start, end)
+    l8 = landsat8.filterDate(start, end)
+    combined = l5.merge(l8)
     
-    # دمج المجموعات
-    combined = ee.ImageCollection(l5_year.merge(l8_year))
-    
-    # التحقق من وجود صور باستخدام دالة ee.Algorithms.IsEqual(combined.size(), 0)
-    is_empty = ee.Algorithms.IsEqual(combined.size(), 0)
-    
-    # استخدام ee.Algorithms.If لتنفيذ الخطوات التالية فقط إذا كانت المجموعة غير فارغة
-    image = ee.Algorithms.If(
-        is_empty,
-        ee.Image(None),  # إرجاع صورة فارغة إذا كانت المجموعة فارغة
-        combined.select('NDVI').median().clip(roi).set("year", year)  # حساب المتوسط وقص الصورة إذا كانت المجموعة غير فارغة
+    return ee.Algorithms.If(
+        combined.size().gt(0),
+        combined.select('NDVI').median().clip(roi).set('year', year),
+        None
     )
-    
-    # إضافة الصورة إلى القائمة إذا لم تكن فارغة
-    annual_ndvi.append(image)
 
-# تصفية الصور الفارغة من القائمة والتأكد من أنها من النوع الصحيح
-annual_ndvi = [img for img in annual_ndvi if isinstance(img, ee.Image)]
+years = ee.List.sequence(1984, 2023)
+annual_ndvi = years.map(create_annual_image)
+ndvi_series = ee.ImageCollection(annual_ndvi).filter(ee.Filter.notNull(['year']))
 
-# إنشاء مجموعة الصور للسلسلة الزمنية
-if len(annual_ndvi) > 0:
-    ndvi_series = ee.ImageCollection.fromImages(annual_ndvi)
-    # تصفية السنوات المتاحة والتأكد من أنها من النوع الصحيح
-    available_years = [img.get('year').getInfo() for img in annual_ndvi if isinstance(img, ee.Image)]
-    layer_names = [f"NDVI {y}" for y in available_years]
-    
-    # إعدادات العرض
-    ndvi_vis = {
-        'min': 0.1,
-        'max': 0.8,
-        'palette': ['white', 'yellow', 'yellowgreen', 'green', 'darkgreen']
-    }
+# استخراج السنوات المتاحة
+available_years = ndvi_series.aggregate_array('year').getInfo()
+valid_years = sorted([int(y) for y in available_years if y is not None])
+layer_names = [f"NDVI {y}" for y in valid_years]
 
-    # واجهة ستريمليت
-    st.set_page_config(layout="wide")
-    st.title("🌾 مشروع تخرج: تحليل ومتابعة الغطاء النباتي بمنطقة الظهير الصحراوي لبني سويف")
+# إعدادات الواجهة
+ndvi_vis = {
+    'min': 0.1,
+    'max': 0.8,
+    'palette': ['white', 'yellow', 'yellowgreen', 'green', 'darkgreen']
+}
 
-    # عرض الخريطة
-    m = geemap.Map(center=[29.1, 30.6], zoom=9)
-    m.addLayer(roi, {}, "منطقة الدراسة", True)
-    
-    try:
-        m.ts_inspector(
-            left_ts=ndvi_series,
-            right_ts=ndvi_series,
-            left_names=layer_names,
-            right_names=layer_names,
-            left_vis=ndvi_vis,
-            right_vis=ndvi_vis,
-        )
-    except Exception as e:
-        st.error(f"خطأ في ts_inspector: {str(e)}")
-        selected_year = st.selectbox("اختر السنة لعرض NDVI", available_years)
-        selected_ndvi = ndvi_series.filter(ee.Filter.eq('year', selected_year)).first()
-        m.addLayer(selected_ndvi, ndvi_vis, f"NDVI {selected_year}")
-    
-    m.to_streamlit(height=600)
-else:
-    st.error("لم يتم العثور على بيانات NDVI للمنطقة المحددة.")
+st.set_page_config(layout="wide")
+st.title("🌾 تحليل الغطاء النباتي ببني سويف")
+
+# تحليل الاتجاه الزمني
+trend = ndvi_series.select('NDVI').reduce(ee.Reducer.linearFit())
+
+# عرض الخريطة
+m = geemap.Map(center=[29.1, 30.6], zoom=9)
+m.addLayer(roi, {}, "منطقة الدراسة")
+m.addLayer(trend.select('scale'), {'min': -0.01, 'max': 0.01}, 'اتجاه NDVI')
+
+try:
+    m.ts_inspector(
+        left_ts=ndvi_series,
+        right_ts=ndvi_series,
+        left_names=layer_names,
+        right_names=layer_names,
+        left_vis=ndvi_vis,
+        right_vis=ndvi_vis,
+    )
+except Exception as e:
+    st.warning("وضع العرض المبسط بسبب محدودية البيانات")
+    selected_year = st.selectbox("اختر السنة", valid_years)
+    selected_img = ndvi_series.filter(ee.Filter.eq('year', selected_year)).first()
+    m.addLayer(selected_img, ndvi_vis, f"NDVI {selected_year}")
+
+m.to_streamlit(height=600)
+
+# إضافة تحليل إحصائي
+st.subheader("التحليل الإحصائي")
+st.write("""
+- **معدل التغير السنوي:** {:.4f} 
+- **فترة الدراسة:** 1984-2023
+- **عدد السنوات الفعالة:** {}
+""".format(
+    trend.select('scale').reduceRegion(
+        reducer=ee.Reducer.mean(),
+        geometry=roi,
+        scale=30
+    ).get('scale').getInfo(),
+    len(valid_years)
+))
+
 
 
 
