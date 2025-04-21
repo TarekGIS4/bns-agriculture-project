@@ -7,3 +7,4 @@ geopandas
 setuptools
 reportlab
 streamlit-folium
+folium
