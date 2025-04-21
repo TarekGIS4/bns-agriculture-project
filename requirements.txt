@@ -6,3 +6,4 @@ owslib
 geopandas
 setuptools
 reportlab
+streamlit-folium
