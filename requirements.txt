@@ -1,4 +1,4 @@
-streamlit
+
 geemap
 leafmap
 earthengine-api
